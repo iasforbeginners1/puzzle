@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Match Game</title>
+    <style>
+        /* CSS: Game ka Look aur Feel */
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 { color: #333; margin-top: 20px; }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 10px;
+            margin-top: 20px;
+        }
+
+        .card {
+            width: 100px;
+            height: 100px;
+            background-color: #2e67bd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: transform 0.3s, background-color 0.3s;
+            user-select: none;
+        }
+
+        .card.flipped {
+            background-color: #fff;
+            color: #000;
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background-color: #a8e6cf;
+            cursor: default;
+            visibility: visible;
+        }
+
+        #reset-btn {
+            margin-top: 30px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Memory Match Game</h1>
+    <p>Do ek jaise cards dhoondhein!</p>
+
+    <div class="game-container" id="game-board">
+        <!-- Cards JavaScript se yahan aayenge -->
+    </div>
+
+    <button id="reset-btn" onclick="resetGame()">Game Reset Karein</button>
+
+    <script>
+        // JavaScript: Game Logic
+        const board = document.getElementById('game-board');
+        const emojis = ['🍎', '🍎', '🍌', '🍌', '🍇', '🍇', '🍓', '🍓', '🍍', '🍍', '🥝', '🥝', '🍉', '🍉', '🍒', '🍒'];
+        let flippedCards = [];
+        let matchedCount = 0;
+
+        // 1. Cards ko shuffle (mix) karne ka function
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // 2. Board banane ka function
+        function createBoard() {
+            const shuffledEmojis = shuffle([...emojis]);
+            board.innerHTML = '';
+            shuffledEmojis.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.value = emoji;
+                card.innerText = emoji;
+                card.onclick = () => flipCard(card);
+                board.appendChild(card);
+            });
+        }
+
+        // 3. Card palatne ka logic
+        function flipCard(card) {
+            if (flippedCards.length < 2 && !card.classList.contains('flipped')) {
+                card.classList.add('flipped');
+                flippedCards.push(card);
+
+                if (flippedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+        }
+
+        // 4. Match check karne ka logic
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+
+            if (card1.dataset.value === card2.dataset.value) {
+                // Match mil gaya
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedCount += 2;
+                flippedCards = [];
+
+                if (matchedCount === emojis.length) {
+                    setTimeout(() => alert('Badhai ho! Aapne game jeet liya!'), 500);
+                }
+            } else {
+                // Match nahi mila, wapas palat dein
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        // 5. Game reset karne ka function
+        function resetGame() {
+            matchedCount = 0;
+            flippedCards = [];
+            createBoard();
+        }
+
+        // Game start karein
+        createBoard();
+    </script>
+</body>
+</html>
