@@ -29,56 +29,79 @@
 
         .game-board {
             display: grid;
-            grid-template-columns: repeat(4, 150px);
+            grid-template-columns: repeat(4, 1fr); /* Responsive grid */
             grid-gap: 12px;
+            max-width: 650px;
         }
 
-        .card {
+        /* CARD CONTAINER: Base for the flipping effect */
+        .card-container {
             width: 150px;
             height: 100px;
-            background-color: #8d6e63;
+            perspective: 1000px; /* Essential for 3D flip */
+            cursor: pointer;
+        }
+
+        /* CARD INNER: The element that actually rotates */
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            position: relative;
+        }
+
+        /* State when flipped */
+        .card-container.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        /* BASE STYLE FOR BOTH FACES */
+        .card-face {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            -webkit-backface-visibility: hidden; /* For Safari */
+            backface-visibility: hidden; /* Hide the back when it's facing away */
+            border-radius: 8px;
+            border: 2px solid #5d4037;
             display: flex;
             justify-content: center;
             align-items: center;
             text-align: center;
             padding: 5px;
-            font-size: 14px;
-            font-weight: bold;
-            color: transparent; /* Card band hone par text nahi dikhega */
-            cursor: pointer;
-            border-radius: 8px;
-            transition: transform 0.6s;
+            box-sizing: border-box;
             user-select: none;
-            border: 2px solid #5d4037;
-            transform-style: preserve-3d;
         }
 
-        /* Jab card flip hoga */
-        .card.flipped {
+        /* FRONT FACE: Brown and Hidden Text */
+        .card-front {
+            background-color: #8d6e63;
+            z-index: 2; /* Shows by default */
+        }
+
+        /* BACK FACE: White with Visible Text */
+        .card-back {
             background-color: #ffffff;
             color: #3e2723;
-            transform: rotateY(180deg);
+            transform: rotateY(180deg); /* Text is already rotated 180deg relative to front */
+            z-index: 1;
+            font-size: 14px;
+            font-weight: bold;
         }
 
-        /* TEXT CORRECTION: Isse text ulta nahi dikhega */
-        .card.flipped::after {
-            content: attr(data-text);
-            transform: rotateY(180deg);
-            display: block;
-        }
-
-        /* Purana text hide karne ke liye jab flipped ho */
-        .card.flipped {
-            font-size: 0; 
-        }
-
-        .card.matched {
+        /* MATCHED STATE */
+        .card-container.matched .card-back {
             background-color: #c8e6c9;
             color: #2e7d32;
-            cursor: default;
             border-color: #2e7d32;
-            font-size: 14px; /* Matched hone par font wapas dikhao */
-            transform: none; /* Flip effect hata do taki text seedha rahe */
+            cursor: default;
+        }
+
+        /* ERROR (Wrong Match) STATE */
+        .card-container.error .card-back {
+            background-color: #ffcdd2;
+            border-color: #d32f2f;
         }
 
         #message {
@@ -86,6 +109,7 @@
             font-size: 1.5rem;
             font-weight: bold;
             color: #d32f2f;
+            text-align: center;
         }
 
         .btn {
@@ -97,7 +121,10 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 1rem;
+            transition: background 0.3s;
         }
+
+        .btn:hover { background-color: #3e2723; }
     </style>
 </head>
 <body>
@@ -109,7 +136,9 @@
         <div>Chances: <span id="chances">10</span></div>
     </div>
 
-    <div class="game-board" id="board"></div>
+    <div class="game-board" id="board">
+        <!-- Cards will be generated here -->
+    </div>
 
     <div id="message"></div>
     <button class="btn" onclick="startGame()">Restart Game</button>
@@ -137,6 +166,35 @@
             return array.sort(() => Math.random() - 0.5);
         }
 
+        function createCardElement(item) {
+            // Container
+            const cardContainer = document.createElement('div');
+            cardContainer.classList.add('card-container');
+            cardContainer.dataset.id = item.id;
+            cardContainer.onclick = () => flipCard(cardContainer);
+
+            // Inner (for animation)
+            const cardInner = document.createElement('div');
+            cardInner.classList.add('card-inner');
+
+            // Front face (Brown, cover)
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-face', 'card-front');
+            cardFront.innerText = "?"; // Optional pattern
+
+            // Back face (White, with text)
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-face', 'card-back');
+            cardBack.innerText = item.text;
+
+            // Assemble
+            cardInner.appendChild(cardFront);
+            cardInner.appendChild(cardBack);
+            cardContainer.appendChild(cardInner);
+
+            return cardContainer;
+        }
+
         function startGame() {
             gameActive = true;
             chances = 10;
@@ -145,7 +203,10 @@
             flippedCards = [];
             document.getElementById('chances').innerText = chances;
             document.getElementById('message').innerText = '';
+            
+            // Clear and restart timer
             clearInterval(timerInterval);
+            document.getElementById('timer').innerText = "02:00";
             startTimer();
             
             const board = document.getElementById('board');
@@ -153,13 +214,7 @@
             
             const shuffledPairs = shuffle([...pairs]);
             shuffledPairs.forEach(item => {
-                const card = document.createElement('div');
-                card.classList.add('card');
-                card.dataset.id = item.id;
-                card.dataset.text = item.text; // Text ko data attribute me dala
-                card.innerText = item.text;
-                card.onclick = () => flipCard(card);
-                board.appendChild(card);
+                board.appendChild(createCardElement(item));
             });
         }
 
@@ -169,34 +224,58 @@
                 let mins = Math.floor(timeLeft / 60);
                 let secs = timeLeft % 60;
                 document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0'+secs : secs}`;
-                if (timeLeft <= 0) endGame("Time's Up!");
+                
+                if (timeLeft <= 0) {
+                    endGame("Samay Khatam! (Time's Up!)");
+                }
             }, 1000);
         }
 
-        function flipCard(card) {
-            if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) return;
-            card.classList.add('flipped');
-            flippedCards.push(card);
-            if (flippedCards.length === 2) checkMatch();
+        function flipCard(cardContainer) {
+            if (!gameActive || flippedCards.length >= 2 || 
+                cardContainer.classList.contains('flipped') || 
+                cardContainer.classList.contains('matched')) {
+                return;
+            }
+
+            cardContainer.classList.add('flipped');
+            flippedCards.push(cardContainer);
+
+            if (flippedCards.length === 2) {
+                checkMatch();
+            }
         }
 
         function checkMatch() {
             const [card1, card2] = flippedCards;
+            
             if (card1.dataset.id === card2.dataset.id) {
+                // Correct Match
                 card1.classList.add('matched');
                 card2.classList.add('matched');
                 matchedPairs++;
                 flippedCards = [];
-                if (matchedPairs === 8) endGame("Victory! You are a History Master!");
+
+                if (matchedPairs === 8) {
+                    endGame("Bahut Badhiya! Aap Itihas Ke Master Hain!");
+                }
             } else {
+                // Incorrect Match
+                card1.classList.add('error');
+                card2.classList.add('error');
                 chances--;
                 document.getElementById('chances').innerText = chances;
-                setTimeout(() => {
-                    card1.classList.remove('flipped');
-                    card2.classList.remove('flipped');
-                    flippedCards = [];
-                    if (chances <= 0) endGame("No more chances!");
-                }, 1000);
+
+                if (chances <= 0) {
+                    endGame("Chances Khatam! Koshish Karte Rahein.");
+                } else {
+                    // Flip back after a delay
+                    setTimeout(() => {
+                        card1.classList.remove('flipped', 'error');
+                        card2.classList.remove('flipped', 'error');
+                        flippedCards = [];
+                    }, 1000);
+                }
             }
         }
 
@@ -206,6 +285,7 @@
             document.getElementById('message').innerText = msg;
         }
 
+        // Initialize Game
         startGame();
     </script>
 </body>
