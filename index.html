@@ -44,18 +44,32 @@
             padding: 5px;
             font-size: 14px;
             font-weight: bold;
-            color: transparent;
+            color: transparent; /* Card band hone par text nahi dikhega */
             cursor: pointer;
             border-radius: 8px;
-            transition: 0.3s;
+            transition: transform 0.6s;
             user-select: none;
             border: 2px solid #5d4037;
+            transform-style: preserve-3d;
         }
 
+        /* Jab card flip hoga */
         .card.flipped {
             background-color: #ffffff;
             color: #3e2723;
             transform: rotateY(180deg);
+        }
+
+        /* TEXT CORRECTION: Isse text ulta nahi dikhega */
+        .card.flipped::after {
+            content: attr(data-text);
+            transform: rotateY(180deg);
+            display: block;
+        }
+
+        /* Purana text hide karne ke liye jab flipped ho */
+        .card.flipped {
+            font-size: 0; 
         }
 
         .card.matched {
@@ -63,10 +77,8 @@
             color: #2e7d32;
             cursor: default;
             border-color: #2e7d32;
-        }
-
-        .card.error {
-            background-color: #ffcdd2;
+            font-size: 14px; /* Matched hone par font wapas dikhao */
+            transform: none; /* Flip effect hata do taki text seedha rahe */
         }
 
         #message {
@@ -86,26 +98,23 @@
             cursor: pointer;
             font-size: 1rem;
         }
-
-        .btn:hover { background-color: #3e2723; }
     </style>
 </head>
 <body>
 
-    <h1>Ancient History: Book & Author Match</h1>
+    <h1>Ancient History Match</h1>
     
     <div class="stats-container">
         <div>Time: <span id="timer">02:00</span></div>
-        <div>Chances Left: <span id="chances">10</span></div>
+        <div>Chances: <span id="chances">10</span></div>
     </div>
 
     <div class="game-board" id="board"></div>
 
     <div id="message"></div>
-    <button class="btn" onclick="startGame()">Game Restart Karein</button>
+    <button class="btn" onclick="startGame()">Restart Game</button>
 
     <script>
-        // Ancient History Books & Authors Data
         const pairs = [
             { text: "Arthashastra", id: 1 }, { text: "Chanakya", id: 1 },
             { text: "Indica", id: 2 }, { text: "Megasthenes", id: 2 },
@@ -120,7 +129,7 @@
         let flippedCards = [];
         let matchedPairs = 0;
         let chances = 10;
-        let timeLeft = 120; // 2 minutes
+        let timeLeft = 120;
         let timerInterval;
         let gameActive = true;
 
@@ -147,6 +156,7 @@
                 const card = document.createElement('div');
                 card.classList.add('card');
                 card.dataset.id = item.id;
+                card.dataset.text = item.text; // Text ko data attribute me dala
                 card.innerText = item.text;
                 card.onclick = () => flipCard(card);
                 board.appendChild(card);
@@ -158,56 +168,35 @@
                 timeLeft--;
                 let mins = Math.floor(timeLeft / 60);
                 let secs = timeLeft % 60;
-                document.getElementById('timer').innerText = 
-                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                
-                if (timeLeft <= 0) {
-                    endGame("Samay khatam! Aap haar gaye.");
-                }
+                document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0'+secs : secs}`;
+                if (timeLeft <= 0) endGame("Time's Up!");
             }, 1000);
         }
 
         function flipCard(card) {
-            if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) {
-                return;
-            }
-
+            if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) return;
             card.classList.add('flipped');
             flippedCards.push(card);
-
-            if (flippedCards.length === 2) {
-                checkMatch();
-            }
+            if (flippedCards.length === 2) checkMatch();
         }
 
         function checkMatch() {
             const [card1, card2] = flippedCards;
-            
             if (card1.dataset.id === card2.dataset.id) {
-                // Sahi Match
                 card1.classList.add('matched');
                 card2.classList.add('matched');
                 matchedPairs++;
                 flippedCards = [];
-                if (matchedPairs === 8) {
-                    endGame("Badhai ho! Aapne itihas seekh liya!");
-                }
+                if (matchedPairs === 8) endGame("Victory! You are a History Master!");
             } else {
-                // Galat Match
                 chances--;
                 document.getElementById('chances').innerText = chances;
-                card1.classList.add('error');
-                card2.classList.add('error');
-
                 setTimeout(() => {
-                    card1.classList.remove('flipped', 'error');
-                    card2.classList.remove('flipped', 'error');
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
                     flippedCards = [];
+                    if (chances <= 0) endGame("No more chances!");
                 }, 1000);
-
-                if (chances <= 0) {
-                    endGame("Chances khatam! Koshish karte rahein.");
-                }
             }
         }
 
@@ -217,7 +206,6 @@
             document.getElementById('message').innerText = msg;
         }
 
-        // Initialize Game
         startGame();
     </script>
 </body>
