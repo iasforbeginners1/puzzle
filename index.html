@@ -3,149 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memory Match Game</title>
+    <title>Ancient History: Book & Author Match</title>
     <style>
-        /* CSS: Game ka Look aur Feel */
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f0f2f5;
-            min-height: 100vh;
+            background-color: #f4f1ea;
             margin: 0;
+            padding: 20px;
         }
 
-        h1 { color: #333; margin-top: 20px; }
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
 
-        .game-container {
+        .game-board {
             display: grid;
-            grid-template-columns: repeat(4, 100px);
-            grid-gap: 10px;
-            margin-top: 20px;
+            grid-template-columns: repeat(4, 150px);
+            grid-gap: 12px;
         }
 
         .card {
-            width: 100px;
+            width: 150px;
             height: 100px;
-            background-color: #2e67bd;
+            background-color: #8d6e63;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 40px;
+            text-align: center;
+            padding: 5px;
+            font-size: 14px;
+            font-weight: bold;
             color: transparent;
             cursor: pointer;
             border-radius: 8px;
-            transition: transform 0.3s, background-color 0.3s;
+            transition: 0.3s;
             user-select: none;
+            border: 2px solid #5d4037;
         }
 
         .card.flipped {
-            background-color: #fff;
-            color: #000;
+            background-color: #ffffff;
+            color: #3e2723;
             transform: rotateY(180deg);
         }
 
         .card.matched {
-            background-color: #a8e6cf;
+            background-color: #c8e6c9;
+            color: #2e7d32;
             cursor: default;
-            visibility: visible;
+            border-color: #2e7d32;
         }
 
-        #reset-btn {
-            margin-top: 30px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #333;
+        .card.error {
+            background-color: #ffcdd2;
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #d32f2f;
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 10px 25px;
+            background-color: #5d4037;
             color: white;
             border: none;
-            cursor: pointer;
             border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
         }
+
+        .btn:hover { background-color: #3e2723; }
     </style>
 </head>
 <body>
 
-    <h1>Memory Match Game</h1>
-    <p>Do ek jaise cards dhoondhein!</p>
-
-    <div class="game-container" id="game-board">
-        <!-- Cards JavaScript se yahan aayenge -->
+    <h1>Ancient History: Book & Author Match</h1>
+    
+    <div class="stats-container">
+        <div>Time: <span id="timer">02:00</span></div>
+        <div>Chances Left: <span id="chances">10</span></div>
     </div>
 
-    <button id="reset-btn" onclick="resetGame()">Game Reset Karein</button>
+    <div class="game-board" id="board"></div>
+
+    <div id="message"></div>
+    <button class="btn" onclick="startGame()">Game Restart Karein</button>
 
     <script>
-        // JavaScript: Game Logic
-        const board = document.getElementById('game-board');
-        const emojis = ['🍎', '🍎', '🍌', '🍌', '🍇', '🍇', '🍓', '🍓', '🍍', '🍍', '🥝', '🥝', '🍉', '🍉', '🍒', '🍒'];
-        let flippedCards = [];
-        let matchedCount = 0;
+        // Ancient History Books & Authors Data
+        const pairs = [
+            { text: "Arthashastra", id: 1 }, { text: "Chanakya", id: 1 },
+            { text: "Indica", id: 2 }, { text: "Megasthenes", id: 2 },
+            { text: "Mudrarakshasa", id: 3 }, { text: "Vishakhadatta", id: 3 },
+            { text: "Rajatarangini", id: 4 }, { text: "Kalhana", id: 4 },
+            { text: "Harshacharita", id: 5 }, { text: "Banabhatta", id: 5 },
+            { text: "Mahabhashya", id: 6 }, { text: "Patanjali", id: 6 },
+            { text: "Abhigyan Shakuntalam", id: 7 }, { text: "Kalidasa", id: 7 },
+            { text: "Mrichchhakatika", id: 8 }, { text: "Shudraka", id: 8 }
+        ];
 
-        // 1. Cards ko shuffle (mix) karne ka function
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let chances = 10;
+        let timeLeft = 120; // 2 minutes
+        let timerInterval;
+        let gameActive = true;
+
         function shuffle(array) {
             return array.sort(() => Math.random() - 0.5);
         }
 
-        // 2. Board banane ka function
-        function createBoard() {
-            const shuffledEmojis = shuffle([...emojis]);
+        function startGame() {
+            gameActive = true;
+            chances = 10;
+            timeLeft = 120;
+            matchedPairs = 0;
+            flippedCards = [];
+            document.getElementById('chances').innerText = chances;
+            document.getElementById('message').innerText = '';
+            clearInterval(timerInterval);
+            startTimer();
+            
+            const board = document.getElementById('board');
             board.innerHTML = '';
-            shuffledEmojis.forEach((emoji, index) => {
+            
+            const shuffledPairs = shuffle([...pairs]);
+            shuffledPairs.forEach(item => {
                 const card = document.createElement('div');
                 card.classList.add('card');
-                card.dataset.value = emoji;
-                card.innerText = emoji;
+                card.dataset.id = item.id;
+                card.innerText = item.text;
                 card.onclick = () => flipCard(card);
                 board.appendChild(card);
             });
         }
 
-        // 3. Card palatne ka logic
-        function flipCard(card) {
-            if (flippedCards.length < 2 && !card.classList.contains('flipped')) {
-                card.classList.add('flipped');
-                flippedCards.push(card);
-
-                if (flippedCards.length === 2) {
-                    checkMatch();
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                let mins = Math.floor(timeLeft / 60);
+                let secs = timeLeft % 60;
+                document.getElementById('timer').innerText = 
+                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    endGame("Samay khatam! Aap haar gaye.");
                 }
+            }, 1000);
+        }
+
+        function flipCard(card) {
+            if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped') || card.classList.contains('matched')) {
+                return;
+            }
+
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                checkMatch();
             }
         }
 
-        // 4. Match check karne ka logic
         function checkMatch() {
             const [card1, card2] = flippedCards;
-
-            if (card1.dataset.value === card2.dataset.value) {
-                // Match mil gaya
+            
+            if (card1.dataset.id === card2.dataset.id) {
+                // Sahi Match
                 card1.classList.add('matched');
                 card2.classList.add('matched');
-                matchedCount += 2;
+                matchedPairs++;
                 flippedCards = [];
-
-                if (matchedCount === emojis.length) {
-                    setTimeout(() => alert('Badhai ho! Aapne game jeet liya!'), 500);
+                if (matchedPairs === 8) {
+                    endGame("Badhai ho! Aapne itihas seekh liya!");
                 }
             } else {
-                // Match nahi mila, wapas palat dein
+                // Galat Match
+                chances--;
+                document.getElementById('chances').innerText = chances;
+                card1.classList.add('error');
+                card2.classList.add('error');
+
                 setTimeout(() => {
-                    card1.classList.remove('flipped');
-                    card2.classList.remove('flipped');
+                    card1.classList.remove('flipped', 'error');
+                    card2.classList.remove('flipped', 'error');
                     flippedCards = [];
                 }, 1000);
+
+                if (chances <= 0) {
+                    endGame("Chances khatam! Koshish karte rahein.");
+                }
             }
         }
 
-        // 5. Game reset karne ka function
-        function resetGame() {
-            matchedCount = 0;
-            flippedCards = [];
-            createBoard();
+        function endGame(msg) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            document.getElementById('message').innerText = msg;
         }
 
-        // Game start karein
-        createBoard();
+        // Initialize Game
+        startGame();
     </script>
 </body>
 </html>
